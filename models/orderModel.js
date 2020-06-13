@@ -11,6 +11,15 @@ const orderSchema = Joi.object({
   amount: Joi.number().required(),
 });
 
+const clearBoxSchema = Joi.object({
+  order_id: Joi.number().required(),
+});
+
+const clearByProductSchema = Joi.object({
+  order_id: Joi.number().required(),
+  product_id: Joi.number().required(),
+});
+
 const schema = Joi.object({
   chat_id: Joi.number().required(),
 });
@@ -24,17 +33,29 @@ router.get("/", (req, res) => {
       message: "Bad request",
       error: error.details[0].message,
     });
-  const query = `SELECT ARRAY_AGG(jsonb_build_object('price', p.p_price, 'name', p.p_name, 'amount',i.quantity)) 
-                AS list, g.o_id as order_id, g.u_id as user_id FROM 
-                orders as g natural join order_items as i  natural join products as p 
-                WHERE u_id =${value.chat_id} AND status=1 GROUP BY g.o_id`;
+  const query = `SELECT 
+                    o.o_id, p.p_name, p.p_price, p.p_id, SUM(oi.quantity) FILTER (WHERE oi.p_id = p.p_id) as amount 
+                  FROM 
+                  orders o
+                  JOIN
+                  order_items oi ON o.o_id = oi.o_id
+                  JOIN
+                  products p ON oi.p_id = p.p_id
+                  WHERE 
+                  o.u_id = ${value.chat_id} AND o.status = 1
+                  GROUP BY p.p_id, p.p_name, o.o_id
+ 
+ `;
   const pool = new Pool(CONFIG.DB);
   pool.query(query, (error, results) => {
-    if (error)
-      return res.send({ status: 500, message: "Internal error", error });
-    if (results.rowCount <= 0)
-      return res.send({ status: 404, msg: "No data found" });
-    return res.send({ status: 200, results: results.rows });
+    console.log(query);
+    if (error) return res.send({ status: 500, message: "Internal error", error });
+    if (results.rowCount <= 0) return res.send({ status: 404, msg: "No data found" });
+    let outcome = {
+      order_id: results.rows[0].o_id,
+      list: [results.rows],
+    };
+    return res.send({ status: 200, results: outcome });
   });
   pool.end();
 });
@@ -69,8 +90,44 @@ router.post("/", async (req, res) => {
   const pool = new Pool(CONFIG.DB);
   pool.query(insertQuery, (error, results) => {
     console.log(insertQuery);
-    if (error)
-      return res.send({ status: 500, message: "Internal error", error });
+    if (error) return res.send({ status: 500, message: "Internal error", error });
+    return res.send({ status: 200 });
+  });
+  pool.end();
+});
+
+router.post("/clear", (req, res) => {
+  const { error, value } = clearBoxSchema.validate(req.body);
+
+  if (error)
+    return res.send({
+      status: 400,
+      message: "Bad request",
+      error: error.details[0].message,
+    });
+  const query = `UPDATE orders SET status = 2 WHERE o_id = ${value.order_id}`;
+  const pool = new Pool(CONFIG.DB);
+  pool.query(query, (error, results) => {
+    if (error) return res.send({ status: 500, message: "Internal error", error });
+    return res.send({ status: 200, results: results.rows });
+  });
+  pool.end();
+});
+
+router.post("/clear/item", (req, res) => {
+  const { error, value } = clearByProductSchema.validate(req.body);
+
+  if (error)
+    return res.send({
+      status: 400,
+      message: "Bad request",
+      error: error.details[0].message,
+    });
+  const query = `DELETE FROM order_items WHERE o_id = ${value.order_id} AND p_id = ${value.product_id}`;
+  const pool = new Pool(CONFIG.DB);
+  pool.query(query, (error, results) => {
+    console.log(query);
+    if (error) return res.send({ status: 500, message: "Internal error", error });
     return res.send({ status: 200 });
   });
   pool.end();

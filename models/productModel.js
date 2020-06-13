@@ -16,10 +16,8 @@ router.get("/all", (req, res) => {
                     FROM products NATURAL JOIN categories NATURAL JOIN units ORDER BY p_id ASC`;
   const pool = new Pool(CONFIG.DB);
   pool.query(query, (error, results) => {
-    if (error)
-      return res.send({ status: 500, message: "Internal error", error });
-    if (results.rowCount > 0)
-      return res.send({ status: 200, results: results.rows });
+    if (error) return res.send({ status: 500, message: "Internal error", error });
+    if (results.rowCount > 0) return res.send({ status: 200, results: results.rows });
     else return res.send({ status: 404, msg: "Not data found" });
   });
   pool.end();
@@ -29,10 +27,8 @@ router.get("/categories", (req, res) => {
   const query = `SELECT c_id as id, c_name as name FROM categories`;
   const pool = new Pool(CONFIG.DB);
   pool.query(query, (error, results) => {
-    if (error)
-      return res.send({ status: 500, message: "Internal error", error });
-    if (results.rowCount > 0)
-      return res.send({ status: 200, results: results.rows });
+    if (error) return res.send({ status: 500, message: "Internal error", error });
+    if (results.rowCount > 0) return res.send({ status: 200, results: results.rows });
     else return res.send({ status: 404, msg: "Not data found" });
   });
   pool.end();
@@ -44,10 +40,20 @@ router.get("/", (req, res) => {
                 products p JOIN categories c ON p.c_id = c.c_id GROUP BY c.c_name`;
   const pool = new Pool(CONFIG.DB);
   pool.query(query, (error, results) => {
-    if (error)
-      return res.send({ status: 500, message: "Internal error", error });
-    if (results.rowCount > 0)
-      return res.send({ status: 200, results: results.rows });
+    if (error) return res.send({ status: 500, message: "Internal error", error });
+    if (results.rowCount > 0) return res.send({ status: 200, results: results.rows });
+    else return res.send({ status: 404, msg: "Not data found" });
+  });
+  pool.end();
+});
+
+router.get("/product", (req, res) => {
+  const query = `SELECT p_id, p_name, p_price, p_img, c_name, unit_name FROM products 
+                  natural join categories natural join units WHERE c_id = ${req.query.c_id} `;
+  const pool = new Pool(CONFIG.DB);
+  pool.query(query, (error, results) => {
+    if (error) return res.send({ status: 500, message: "Internal error", error });
+    if (results.rowCount > 0) return res.send({ status: 200, results: results.rows });
     else return res.send({ status: 404, msg: "Not data found" });
   });
   pool.end();
