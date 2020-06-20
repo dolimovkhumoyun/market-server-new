@@ -20,6 +20,13 @@ const clearByProductSchema = Joi.object({
   product_id: Joi.number().required(),
 });
 
+const confirmSchema = Joi.object({
+  order_id: Joi.number().required(),
+  contact: Joi.string().required(),
+  lat: Joi.number().required(),
+  long: Joi.number().required(),
+});
+
 const schema = Joi.object({
   chat_id: Joi.number().required(),
 });
@@ -124,6 +131,27 @@ router.post("/clear/item", (req, res) => {
       error: error.details[0].message,
     });
   const query = `DELETE FROM order_items WHERE o_id = ${value.order_id} AND p_id = ${value.product_id}`;
+  const pool = new Pool(CONFIG.DB);
+  pool.query(query, (error, results) => {
+    console.log(query);
+    if (error) return res.send({ status: 500, message: "Internal error", error });
+    return res.send({ status: 200 });
+  });
+  pool.end();
+});
+
+router.post("/confirm", (req, res) => {
+  const { error, value } = confirmSchema.validate(req.body);
+
+  if (error)
+    return res.send({
+      status: 400,
+      message: "Bad request",
+      error: error.details[0].message,
+    });
+  const query = `UPDATE orders SET 
+  contact = ${value.contact}, location = ST_SetSRID(ST_MakePoint(${value.long}, ${value.lat}), 4326), status = 2
+       WHERE o_id = ${value.order_id}`;
   const pool = new Pool(CONFIG.DB);
   pool.query(query, (error, results) => {
     console.log(query);

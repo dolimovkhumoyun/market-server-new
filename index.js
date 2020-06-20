@@ -4,17 +4,13 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const app = express();
 
-const user = require("./models/userModel");
-const order = require("./models/orderModel");
-const product = require("./models/productModel");
+const api = require("./src/routes");
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-app.use("/users", user);
-app.use("/product", product);
-app.use("/order", order);
+app.use("/", api);
 
-const port = CONFIG.CLINIC.PORT || 3000;
+const port = CONFIG.SYSTEM.PORT || 3000;
 app.listen(port, () => console.log(`Listening on port ${port}`));
